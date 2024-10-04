@@ -2,6 +2,8 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "allowJs": true,  // Allow JavaScript files
+    "checkJs": false,  // Set to true if you want TypeScript to type-check JavaScript files
     "paths": {
       "@/*": [
         "./*"
@@ -11,7 +13,14 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "**/*.js",   // Include .js files
+    "**/*.jsx",  // Include .jsx files
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",   // Optional: Exclude node_modules for performance
+    "**/*.test.js",   // Optional: Exclude test files if needed
+    "**/*.test.ts"    // Optional: Exclude test files if needed
   ]
 }
