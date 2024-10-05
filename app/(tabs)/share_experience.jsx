@@ -18,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import FlightClassAccordion from "@/components/FlightClassAccordion";
 import DatePickerModal from "@/components/DatePickerModal";
 import RatingStarInput from "@/components/RatingStarInput";
+import CustomImagePicker from "@/components/CustomImagePicker";
 
 // Utility function for date string
 const getDateString = (travelDate) =>
@@ -36,52 +37,43 @@ const ShareExperienceScreen = () => {
   const [fullView, setFullView] = useState(false);
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [pickedImageUri, setPickedImageUri] = useState(null);
+  const [pickedImageUris, setPickedImageUris] = useState([]); // For multiple image URIs
   const scrollref = useRef(null);
 
-  // Image picker function
-  const pickImage = useCallback(async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+  // Function to upload multiple images to Cloudinary
+  const uploadImagesToCloudinary = useCallback(async () => {
+    if (!pickedImageUris || pickedImageUris.length === 0) return [];
 
-    if (!result.canceled) {
-      setPickedImageUri(result.assets[0].uri);
-    } else {
-      Alert.alert("Image not selected");
+    const uploadedUrls = [];
+
+    for (const uri of pickedImageUris) {
+      const data = new FormData();
+      data.append("file", {
+        uri: uri,
+        type: "image/jpeg",
+        name: "uploaded_image.jpg",
+      });
+      data.append("upload_preset", "m9rzf5g8");
+      data.append("cloud_name", "dpw8dphtr");
+
+      try {
+        const res = await fetch(
+          "https://api.cloudinary.com/v1_1/dpw8dphtr/image/upload",
+          {
+            method: "POST",
+            body: data,
+          }
+        );
+        const result = await res.json();
+        uploadedUrls.push(result.url); // Add each uploaded image URL to the array
+      } catch (error) {
+        Alert.alert("Error", "Image upload failed");
+        throw error;
+      }
     }
-  }, []);
 
-  // Function to upload image to Cloudinary
-  const uploadImageToCloudinary = useCallback(async () => {
-    if (!pickedImageUri) return null;
-    const data = new FormData();
-    data.append("file", {
-      uri: pickedImageUri,
-      type: "image/jpeg",
-      name: "uploaded_image.jpg",
-    });
-    data.append("upload_preset", "m9rzf5g8");
-    data.append("cloud_name", "dpw8dphtr");
-
-    try {
-      const res = await fetch(
-        "https://api.cloudinary.com/v1_1/dpw8dphtr/image/upload",
-        {
-          method: "POST",
-          body: data,
-        }
-      );
-      const result = await res.json();
-      return result.url;
-    } catch (error) {
-      Alert.alert("Error", "Image upload failed");
-      throw error;
-    }
-  }, [pickedImageUri]);
+    return uploadedUrls; // Return array of uploaded URLs
+  }, [pickedImageUris]);
 
   const handleSubmit = useCallback(async () => {
     if (
@@ -99,7 +91,7 @@ const ShareExperienceScreen = () => {
     setLoading(true);
 
     try {
-      const uploadedImageUrl = await uploadImageToCloudinary(); // Upload the image first
+      const uploadedImageUrls = await uploadImagesToCloudinary(); // Upload multiple images
 
       const experienceData = {
         departureAirport,
@@ -109,7 +101,7 @@ const ShareExperienceScreen = () => {
         travelDate: getDateString(travelDate),
         rating,
         message,
-        imageUrl: uploadedImageUrl, // Use the uploaded image URL
+        imageUrls: uploadedImageUrls,
       };
 
       const response = await fetch(
@@ -143,7 +135,7 @@ const ShareExperienceScreen = () => {
     message,
     travelDate,
     rating,
-    uploadImageToCloudinary,
+    uploadImagesToCloudinary,
   ]);
 
   useEffect(() => {
@@ -164,24 +156,7 @@ const ShareExperienceScreen = () => {
           contentContainerStyle={styles.scrollViewContent}
         >
           {/* Image Upload Section */}
-          <Pressable style={styles.imageUploadSection} onPress={pickImage}>
-            <Image
-              source={
-                pickedImageUri
-                  ? { uri: pickedImageUri }
-                  : require("../../assets/images/image_upload_icon.png")
-              }
-              style={styles.imagePicker}
-            />
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              style={styles.uploadText}
-            >
-              Drop Your Image Here Or{" "}
-              <Text style={styles.browseText}>Browse</Text>
-            </Text>
-          </Pressable>
+          <CustomImagePicker pickedImageUris={pickedImageUris} setPickedImageUris={setPickedImageUris}/>
 
           {/* Form Fields */}
           <TextInput
@@ -311,7 +286,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   imagePicker: {
-    width: 60,
+    width: "30%",
     aspectRatio: 1,
   },
   imageUploadSection: {
@@ -403,5 +378,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textAlignVertical: "center",
     fontSize: THEME.sizes.large,
+  },
+  imageGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+    gap: SPACING.xs,
+    // width: '100%',
+  },
+  gridImage:{
+
+  },
+  gridImageContainer: {
+    width: "30%", // Define width (adjust as needed)
+    height: "30%", // Define width (adjust as needed)
+    aspectRatio: 1, // Maintain a square aspect ratio
   },
 });
